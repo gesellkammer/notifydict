@@ -17,7 +17,7 @@ Topic :: Text Processing :: General
 """
 
 setup(name='notifydict',
-      version='0.0.1',
+      version='0.0.2',
       description='a dictionary which will fire a callback if its changed', 
       long_description=__doc__,
       classifiers=filter(None, classifiers.split('\n')),
