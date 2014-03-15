@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 """
 notifydict: a dictionary which will fire a callback if its changed
 """
@@ -17,14 +16,14 @@ Topic :: Text Processing :: General
 """
 
 setup(name='notifydict',
-      version='0.0.1',
+      version='0.0.2',
       description='a dictionary which will fire a callback if its changed', 
       long_description=__doc__,
       classifiers=filter(None, classifiers.split('\n')),
-      author='Robert Handke',
-      author_email='robert.handke@hushmail.com',
-      py_modules=['notifydict']
-      #install_requires=['pandas>=0.12.0', 'requests>=1.2.3'])
+      author='Eduardo Moguillansky',
+      author_email='eduardo.moguillansky@gmail.com',
+      py_modules=['notifydict'],
+      url="https://github.com/gesellkammer/notifydict"
 )
 
 

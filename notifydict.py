@@ -12,7 +12,8 @@ class NotifyDict(dict):
     >>> d['B']['Ba'] = 101
     B/Ba 101
 
-    You can define qualified callbacks
+    You can define qualified callbacks. A qualified callback is a dictionary
+    where keys are match patterns and values are functions accepting those values
 
     >>> d = NotifyDict({'*'  : lambda key, value: printfunc("default", key, value), 
                         'B/*': lambda key, value: printfunc("subdict", key, value)}, orig)
@@ -20,10 +21,13 @@ class NotifyDict(dict):
     default C 9
     >>> d['B']['Bh'] = 8
     subdict B/Bh 8
+
+    You can also register functions later with .register
     """
     __slots__ = ['_callback_registry', '_callback', '_separator', '_bypass']
-    def __init__(self, callback, *args, **kws):
+    def __init__(self, callback=None, *args, **kws):
         dict.__init__(self, *args, **kws)
+        self._bypass = False
         if callable(callback):
             self._callback = callback
             self._callback_registry = {}
@@ -31,10 +35,12 @@ class NotifyDict(dict):
             self._callback = self.match
             self._callback_registry = callback
         else:
-            raise TypeError("callback must be either a function or a dictionary of callbacks")
+            # called as NotifyDict()
+            self._callback = None
+            self._callback_registry = None
+            self._bypass = True
         self._separator = "/"
-        self._bypass = False
-
+        
     def _match(self, key, value):
         for pattern, callback in self._callback_registry.iteritems():
             if _fnmatch(key, pattern):
@@ -103,6 +109,52 @@ class NotifyDict(dict):
         for k in F:
             self[k] = F[k]
 
+    def register(self, callback, matching=None):
+        """
+        callback: a function of the type callback(key, value) where
+            key: the key that was modified
+            value: the new value
+
+        matching: a specific key or a glob pattern
+        """
+        if self._callback is None:
+            if matching is None:
+                self._callback = callback
+            else:
+                self._callback = self._match
+                self._callback_registry = {matching:callback}
+        elif self._callback_registry is None:
+            self._callback = self._match
+            self._callback_registry = {"*": self._callback}
+            self._register(callback, "*")
+        else:
+            if matching is None:
+                matching = "*"
+            self._register(callback, matching)
+        self._bypass = False
+
+    def _register(self, callback, matching):
+        assert self._callback_registry
+        assert self._callback is self._match
+        prev_callback = self._callback_registry.get(matching)
+        if prev_callback:
+            def merged_callback(key, value):
+                prev_callback(key, value)
+                callback(key, value)
+            self._callback_registry[matching] = merged_callback
+        else:
+            self._callback_registry[matching] = callback
+
+    def unregister(self, key):
+        """
+        key: the same glob pattern you registered the callback with
+
+        KeyError will be thrown if no matching callback was found
+        """
+        func = self._callback_registry.pop(key)
+        if func is None:
+            raise KeyError("no callback was registered with this key")
+
     def set_stealth(self, path, value):
         """
         The same as .set, but does not trigger notification
@@ -111,7 +163,7 @@ class NotifyDict(dict):
         self.set(path, value)
         self._bypass = False
 
-    def set(self, path, value):
+    def set(self, path, value, force=False):
         """
         the same as d[path] = value, but path can be a multilevel path
 
@@ -124,6 +176,14 @@ class NotifyDict(dict):
         got ('B/Bb', 999)
         >>> d
         {'A':10, 'B':{'Ba':100, 'Bb':999}}
+
+        ---------------
+        force:
+            if True, any intermediate subdirs will be created if not present
+
+        See also:
+
+        set_stealth: the same as set but bypasses notification
         """
         if isinstance(path, basestring):
             keys = path.split(self._separator) if isinstance(path, basestring) else path
@@ -137,11 +197,17 @@ class NotifyDict(dict):
         else:
             for key in keys[:-1]:
                 v = d.get(key)
+                if v is None:
+                    if force:
+                        v = {}
+                        dict.__setitem__(d, key, v)
                 if isinstance(v, dict):
                     d = v
                 else:
                     raise KeyError("set -- key not found: %s" % key)
-            d[keys[-1]] = value
+                
+            # d[keys[-1]] = value
+            dict.__setitem__(d, keys[-1], value)
             self.notify(path, value)
 
 class ChangedDict(NotifyDict):
