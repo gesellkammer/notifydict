@@ -166,8 +166,14 @@ class NotifyDict(dict):
     def set(self, path, value, force=False):
         """
         the same as d[path] = value, but path can be a multilevel path
+        using the separator '/' like a normal file path. 
 
-        >>> def printfunc(*args): print "got", args
+        force: if True, any intermediate subdirs will be created if not present
+               (otherwise KeyError is raised)
+
+        Examples:
+
+        >>> def printfunc(*args): print("got", args)
         >>> orig = {'A':10, 'B':{'Ba':100, 'Bb':200}}
         >>> d = NotifyDict(printfunc, orig)
         >>> d._separator
@@ -190,7 +196,10 @@ class NotifyDict(dict):
         elif isinstance(path, (tuple, list)):
             keys = path
         else:
-            raise ValueError("the path must be a string of the type key1/key2/... or a seq [key1, key2, ...]")
+            raise ValueError(
+                "the path must be a string of the type key1/key2/"
+                "... or a seq [key1, key2, ...]"
+            )
         d = self
         if len(keys) == 0:
             self[path] = value
@@ -210,6 +219,7 @@ class NotifyDict(dict):
             dict.__setitem__(d, keys[-1], value)
             self.notify(path, value)
 
+            
 class ChangedDict(NotifyDict):
     __slots__ = ['_changed']
     def __init__(self, *args, **kws):
@@ -227,12 +237,15 @@ class ChangedDict(NotifyDict):
         def callback(key, value):
             self._changed = True
         NotifyDict.__init__(self, callback, *args, **kws)
+
     @property
     def changed(self):
         return self._changed
+
     def check(self):
         self._changed = False
 
+        
 class HistoryDict(NotifyDict):
     __slots__ = ['_history']
     def __init__(self, *args, **kws):
@@ -254,8 +267,10 @@ class HistoryDict(NotifyDict):
         def callback(key, value):
             self._history.append((key, value))
         NotifyDict.__init__(slef, callback, *args, **kws)
+
     @property
     def history(self):
         return self._history
+
     def check(self):
         self._history = []
